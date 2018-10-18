@@ -2,11 +2,10 @@ package jenkins.plugins.slack.extension;
 
 import hudson.EnvVars;
 import hudson.Extension;
-import hudson.model.AbstractBuild;
-import hudson.model.Build;
 import hudson.model.FreeStyleBuild;
 import hudson.model.FreeStyleProject;
 import hudson.model.ItemGroup;
+import hudson.model.Run;
 import hudson.model.TaskListener;
 import jenkins.model.Jenkins;
 import jenkins.plugins.slack.ActiveNotifier;
@@ -79,7 +78,7 @@ public class SlackMessageExtensionTest {
     @Extension
     public static class InternalExtension extends SlackMessageExtension {
         @Override
-        public String doReplacement(String message, AbstractBuild build) {
+        public String doReplacement(String message, Run build) {
             return message.replace("${INTERNAL_STRING}","100%");
         }
     }

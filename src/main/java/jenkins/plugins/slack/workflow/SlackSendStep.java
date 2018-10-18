@@ -6,6 +6,7 @@ import hudson.AbortException;
 import hudson.Extension;
 import hudson.Util;
 import hudson.model.Project;
+import hudson.model.Run;
 import hudson.model.TaskListener;
 import hudson.security.ACL;
 import hudson.util.FormValidation;
@@ -15,6 +16,7 @@ import jenkins.plugins.slack.Messages;
 import jenkins.plugins.slack.SlackNotifier;
 import jenkins.plugins.slack.SlackService;
 import jenkins.plugins.slack.StandardSlackService;
+import jenkins.plugins.slack.extension.SlackMessageExtension;
 import net.sf.json.JSON;
 import net.sf.json.JSONArray;
 import net.sf.json.JSONException;
@@ -34,6 +36,9 @@ import org.kohsuke.stapler.QueryParameter;
 import javax.annotation.Nonnull;
 import javax.inject.Inject;
 
+
+import java.util.List;
+import java.util.logging.Logger;
 
 import static com.cloudbees.plugins.credentials.CredentialsProvider.lookupCredentials;
 
@@ -194,6 +199,9 @@ public class SlackSendStep extends AbstractStepImpl {
         transient SlackSendStep step;
 
         @StepContextParameter
+        transient Run run;
+
+        @StepContextParameter
         transient TaskListener listener;
 
         @Override
@@ -249,13 +257,13 @@ public class SlackSendStep extends AbstractStepImpl {
                     if(object instanceof JSONObject){
                         JSONObject jsonNode = ((JSONObject) object);
                         if (!jsonNode.has("fallback")) {
-                            jsonNode.put("fallback", step.message);
+                            jsonNode.put("fallback", handleExtensionReplacements(step.message));
                         }
                     }
                 }
                 publishSuccess = slackService.publish(jsonArray, color);
             }else{
-                publishSuccess = slackService.publish(step.message, color);
+                publishSuccess = slackService.publish(handleExtensionReplacements(step.message), color);
             }
             if (!publishSuccess && step.failOnError) {
                 throw new AbortException(Messages.NotificationFailed());
@@ -263,6 +271,18 @@ public class SlackSendStep extends AbstractStepImpl {
                 listener.error(Messages.NotificationFailed());
             }
             return null;
+        }
+
+        public String handleExtensionReplacements(String message) {
+            String temp = message;
+            Jenkins jenkins = Jenkins.getInstance();
+            if (jenkins != null) {
+                List<SlackMessageExtension> extensions = jenkins.getExtensionList(SlackMessageExtension.class);
+                for (SlackMessageExtension extension : extensions) {
+                    temp = extension.doReplacement(temp, run);
+                }
+            }
+            return temp;
         }
 
         //streamline unit testing
